@@ -5,6 +5,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/user.js';
+import adminRoutes from './routes/admin.js';
+import universityRoutes from './routes/university.js';
 import { authenticateToken } from './middleware/auth.js';
 import './config/passport.js'; // Adjust path as needed
 import passport from 'passport';
@@ -26,13 +28,15 @@ app.use(cookieParser());
 
 // Connect to MongoDB
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(`${process.env.MONGODB_URI}/lvlup`)
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/user', authenticateToken, userRoutes);
+app.use('/api/university', authenticateToken, universityRoutes);
+app.use('/api/admin',authenticateToken, adminRoutes) 
 
 // Health check route
 app.get('/api/health', (req, res) => {
