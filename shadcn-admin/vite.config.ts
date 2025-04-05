@@ -15,4 +15,8 @@ export default defineConfig({
       '@tabler/icons-react': '@tabler/icons-react/dist/esm/icons/index.mjs',
     },
   },
+  server: {
+    host: true,
+    allowedHosts: ['f43b-49-248-46-146.ngrok-free.app'], // 👈 add this line
+  },
 })

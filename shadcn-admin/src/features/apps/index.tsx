@@ -1,7 +1,5 @@
-'use client'
-
 import { useRef, useState } from 'react'
-import { UploadCloud, Camera, Bot } from 'lucide-react'
+import { Camera, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Header } from '@/components/layout/header'
