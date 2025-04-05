@@ -1,28 +1,29 @@
 import universityModel from "../models/university.model.js";
-import AWS from 'aws-sdk';
+import { S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import multer from 'multer';
-import multerS3 from 'multer-s3';
+import multerS3 from 'multer-s3-v3';
 import path from 'path';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
-// Configure AWS
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION
+// Configure AWS with v3 SDK
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
 });
-
-const s3 = new AWS.S3();
 
 // Configure multer for S3 document uploads
 const documentUpload = multer({
   storage: multerS3({
-    s3: s3,
+    s3: s3Client,
     bucket: process.env.S3_BUCKET_NAME,
-    acl: 'public-read',
+    // Remove the ACL property
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: function (req, file, cb) {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -35,9 +36,9 @@ const documentUpload = multer({
 // Configure multer for S3 infrastructure image uploads
 const infrastructureUpload = multer({
   storage: multerS3({
-    s3: s3,
+    s3: s3Client,
     bucket: process.env.S3_BUCKET_NAME,
-    acl: 'public-read',
+    // Remove the ACL property
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: function (req, file, cb) {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -104,6 +105,9 @@ export const uploadInfrastructure = async (req, res) => {
 export const getUniversityDocs = async (req, res) => {
   try {
     const universityId = req.user.university;
+
+    console.log(req.user)
+
     const university = await universityModel.findById(universityId);
     
     if (!university) {
@@ -157,7 +161,7 @@ export const deleteDocument = async (req, res) => {
         Key: docToDelete.key
       };
       
-      await s3.deleteObject(deleteParams).promise();
+      await s3Client.send(new DeleteObjectCommand(deleteParams));
     }
     
     // Remove from database

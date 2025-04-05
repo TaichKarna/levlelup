@@ -96,8 +96,9 @@ export const login = async (req, res) => {
     const refreshToken = generateRefreshToken(user);
 
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // httpOnly: true,
+      // secure: process.env.NODE_ENV === 'production',
+      samesite : 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -421,8 +422,9 @@ export const oauthCallback = async (req, res) => {
     
     // Set refresh token in HTTP-only cookie
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // httpOnly: true,
+      // secure: process.env.NODE_ENV === 'production',
+      samesite : 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
     
@@ -437,9 +439,9 @@ export const oauthCallback = async (req, res) => {
 // // Helper functions for token generation
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { id: user._id, email: user.email },
+    { id: user._id, email: user.email, university : user.university },
     process.env.JWT_ACCESS_SECRET,
-    { expiresIn: '15m' }
+    { expiresIn: '1d' }
   );
 };
 

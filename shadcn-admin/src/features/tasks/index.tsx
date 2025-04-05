@@ -44,8 +44,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Toast } from '@/components/ui/toast'
 import { Loader2, Upload, File, Trash2, Eye, X } from 'lucide-react'
+import axios from 'axios'
 
-export default function Tasks() {
+export default function Docs() {
   const [documents, setDocuments] = useState([])
   const [isUploading, setIsUploading] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -56,7 +57,11 @@ export default function Tasks() {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [openPreviewDialog, setOpenPreviewDialog] = useState(false)
 
-  // Fetch documents on component mount
+  const getAuthHeaders = () => ({
+    Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+    'Content-Type': 'application/json'
+  })
+
   useEffect(() => {
     fetchDocuments()
   }, [])
@@ -64,20 +69,12 @@ export default function Tasks() {
   const fetchDocuments = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/university/docs', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include'
+      const response = await axios.get('http://localhost:5000/api/university/docs', {
+        headers: getAuthHeaders(),
+        withCredentials: true
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch documents')
-      }
-
-      const data = await response.json()
-      setDocuments(data.documents || [])
+      setDocuments(response.data.documents || [])
     } catch (error) {
       console.error('Error fetching documents:', error)
       Toast({
@@ -92,51 +89,44 @@ export default function Tasks() {
 
   const handleFileChange = (e) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files)
-      setSelectedFiles(filesArray)
+      setSelectedFiles(Array.from(e.target.files))
     }
   }
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) {
-      Toast({
+      return Toast({
         title: 'No files selected',
         description: 'Please select at least one file to upload.',
         variant: 'destructive'
       })
-      return
     }
 
     try {
       setIsUploading(true)
       const formData = new FormData()
-      selectedFiles.forEach(file => {
-        formData.append('documents', file)
+      selectedFiles.forEach(file => formData.append('documents', file))
+
+      const response = await axios.post('http://localhost:5000/api/university/upload-documents', formData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        withCredentials: true
       })
 
-      const response = await fetch('http://localhost:5000/api/university/upload-documents', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
-      })
 
-      if (!response.ok) {
-        throw new Error('Failed to upload documents')
-      }
+      console.log(localStorage.getItem("accessToken"))
 
-      const result = await response.json()
-      
-      // Add new documents to the state
-      setDocuments(prev => [...prev, ...result.files])
+      setDocuments(prev => [...prev, ...response.data.files])
       setSelectedFiles([])
       setOpenUploadDialog(false)
-      
+
       Toast({
         title: 'Upload successful',
-        description: `Uploaded ${result.files.length} document(s) successfully.`
+        description: `Uploaded ${response.data.files.length} document(s) successfully.`
       })
     } catch (error) {
-      console.error('Error uploading documents:', error)
+      console.error('Upload error:', error)
       Toast({
         title: 'Upload failed',
         description: error.message,
@@ -156,27 +146,18 @@ export default function Tasks() {
     if (!deletingDocId) return
 
     try {
-      const response = await fetch(`/api/university/docs/${deletingDocId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
+      await axios.delete(`/api/university/docs/${deletingDocId}`, {
+        headers: getAuthHeaders(),
+        withCredentials: true
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to delete document')
-      }
-
-      // Remove the deleted document from the state
       setDocuments(prev => prev.filter(doc => doc._id !== deletingDocId))
-      
       Toast({
         title: 'Document deleted',
         description: 'The document has been deleted successfully.'
       })
     } catch (error) {
-      console.error('Error deleting document:', error)
+      console.error('Delete error:', error)
       Toast({
         title: 'Delete failed',
         description: error.message,
@@ -207,9 +188,7 @@ export default function Tasks() {
         <div className='mb-6 flex flex-wrap items-center justify-between gap-x-4 space-y-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>University Documents</h2>
-            <p className='text-muted-foreground'>
-              Manage your university documentation and official records
-            </p>
+            <p className='text-muted-foreground'>Manage your university documentation and official records</p>
           </div>
           <Button onClick={() => setOpenUploadDialog(true)}>
             <Upload className="mr-2 h-4 w-4" />
@@ -217,12 +196,54 @@ export default function Tasks() {
           </Button>
         </div>
 
+
+        {/* Preview Dialog */}
+<Dialog open={openPreviewDialog} onOpenChange={setOpenPreviewDialog}>
+  <DialogContent className="sm:max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Preview Document</DialogTitle>
+      <DialogDescription>{previewDocument?.filename}</DialogDescription>
+    </DialogHeader>
+
+    <div className="h-[75vh] overflow-auto">
+      {previewDocument?.url ? (
+        previewDocument.filename?.toLowerCase().endsWith('.pdf') ? (
+          // Direct PDF preview
+          <iframe
+            src={previewDocument.url}
+            title={previewDocument.filename}
+            className="w-full h-full border rounded"
+            allowFullScreen
+            loading="lazy"
+          />
+        ) : (
+          // Use Google Docs Viewer for non-PDF files like DOCX
+          <iframe
+            src={`https://docs.google.com/gview?url=${encodeURIComponent(previewDocument.url)}&embedded=true`}
+            title={previewDocument.filename}
+            className="w-full h-full border rounded"
+            allowFullScreen
+            loading="lazy"
+          />
+        )
+      ) : (
+        <p className="text-center text-sm text-muted-foreground mt-4">
+          No document available for preview.
+        </p>
+      )}
+    </div>
+
+    <DialogFooter>
+      <Button onClick={() => setOpenPreviewDialog(false)}>Close</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+
         <Card>
           <CardHeader>
             <CardTitle>Documents Library</CardTitle>
-            <CardDescription>
-              View, preview and manage all your university documents
-            </CardDescription>
+            <CardDescription>View, preview and manage all your university documents</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -236,12 +257,7 @@ export default function Tasks() {
                 <p className="text-muted-foreground max-w-md mt-2">
                   Upload your university documents to get started. You can upload official records, policies, and more.
                 </p>
-                <Button 
-                  className="mt-4" 
-                  onClick={() => setOpenUploadDialog(true)}
-                >
-                  Upload Your First Document
-                </Button>
+                <Button className="mt-4" onClick={() => setOpenUploadDialog(true)}>Upload Your First Document</Button>
               </div>
             ) : (
               <Table>
@@ -256,26 +272,13 @@ export default function Tasks() {
                   {documents.map((doc) => (
                     <TableRow key={doc._id || doc.url}>
                       <TableCell className="font-medium">{doc.filename}</TableCell>
-                      <TableCell>
-                        {doc.uploadedAt 
-                          ? new Date(doc.uploadedAt).toLocaleDateString() 
-                          : 'Unknown date'}
-                      </TableCell>
+                      <TableCell>{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Unknown'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handlePreview(doc)}
-                          >
+                          <Button variant="outline" size="sm" onClick={() => handlePreview(doc)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="text-red-500 hover:text-red-700"
-                            onClick={() => confirmDelete(doc._id)}
-                          >
+                          <Button variant="outline" size="sm" className="text-red-500 hover:text-red-700" onClick={() => confirmDelete(doc._id)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -294,11 +297,9 @@ export default function Tasks() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Upload Documents</DialogTitle>
-            <DialogDescription>
-              Upload official university documents to your library
-            </DialogDescription>
+            <DialogDescription>Upload official university documents to your library</DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="files">Documents</Label>
@@ -310,7 +311,7 @@ export default function Tasks() {
                 disabled={isUploading}
               />
             </div>
-            
+
             {selectedFiles.length > 0 && (
               <div className="mt-2 space-y-2">
                 <Label>Selected Files ({selectedFiles.length})</Label>
@@ -322,9 +323,7 @@ export default function Tasks() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          setSelectedFiles(prev => 
-                            prev.filter((_, i) => i !== index)
-                          )
+                          setSelectedFiles(prev => prev.filter((_, i) => i !== index))
                         }}
                       >
                         <X className="h-4 w-4" />
@@ -335,19 +334,10 @@ export default function Tasks() {
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setOpenUploadDialog(false)}
-              disabled={isUploading}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleUpload} 
-              disabled={isUploading || selectedFiles.length === 0}
-            >
+            <Button variant="outline" onClick={() => setOpenUploadDialog(false)} disabled={isUploading}>Cancel</Button>
+            <Button onClick={handleUpload} disabled={isUploading || selectedFiles.length === 0}>
               {isUploading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -369,58 +359,14 @@ export default function Tasks() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the document from your library.
-            </AlertDialogDescription>
+            <AlertDialogDescription>This action will permanently delete the document from your library.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteDocument}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Delete
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteDocument}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Document Preview Dialog */}
-      <Dialog open={openPreviewDialog} onOpenChange={setOpenPreviewDialog}>
-        <DialogContent className="sm:max-w-4xl h-3/4">
-          <DialogHeader>
-            <DialogTitle>{previewDocument?.filename}</DialogTitle>
-            <DialogDescription>
-              Document preview
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-auto">
-            {previewDocument && (
-              <iframe
-                src={previewDocument.url}
-                className="w-full h-96 border rounded"
-                title={previewDocument.filename}
-              />
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button asChild variant="outline">
-              <a 
-                href={previewDocument?.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
-                Open in New Tab
-              </a>
-            </Button>
-            <Button onClick={() => setOpenPreviewDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   )
 }

@@ -11,8 +11,15 @@ const UniversitySchema = new mongoose.Schema({
     registrationNumber: String,
     yearOfEstablishment: Number,
     website: String,
-    logo: String,
-    documents: [String], // ✅ changed from embedded to string
+    logo: String, 
+     documents: [
+      {
+        filename: String,
+        url: String,
+        key: String,
+        uploadedAt: { type: Date, default: Date.now }
+      }
+    ], // ✅ changed from embedded to string
     infrastructureImages: [String],
     isverified : {type : Boolean, default : false}, // ✅ same
     ratingRequested: Boolean,
