@@ -328,7 +328,7 @@ export const logout = (req, res) => {
 // Get current user
 export const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password').populate('university');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

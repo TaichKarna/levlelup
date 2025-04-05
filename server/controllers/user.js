@@ -1,18 +1,30 @@
 import User from "../models/user.model.js";
+ // Adjust path as needed
 
-// Get user profile
 export const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    // Ensure the middleware sets req.user
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: 'Unauthorized access' });
+    }
+
+    const user = await User.findById(req.user.id)
+      .select('-password')
+      .populate('university', 'name location logo');
+
+    console.log('User profile:', user); // Debugging line
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json(user);
+
+    res.status(200).json(user);
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 // Update user profile
 export const updateProfile = async (req, res) => {
