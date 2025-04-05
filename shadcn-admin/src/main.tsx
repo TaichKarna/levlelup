@@ -10,11 +10,16 @@ import { RouterProvider, createRouter } from '@tanstack/react-router'
 import { useAuthStore } from '@/stores/authStore'
 import { handleServerError } from '@/utils/handle-server-error'
 import { toast } from '@/hooks/use-toast'
+import { AuthProvider } from './context/auth-context'
 import { FontProvider } from './context/font-context'
 import { ThemeProvider } from './context/theme-context'
 import './index.css'
 // Generated Routes
 import { routeTree } from './routeTree.gen'
+
+const AuthWrapper = ({ children }) => {
+  return <AuthProvider>{children}</AuthProvider>
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,7 +105,14 @@ if (!rootElement.innerHTML) {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme='light' storageKey='vite-ui-theme'>
           <FontProvider>
-            <RouterProvider router={router} />
+            <AuthWrapper>
+              <RouterProvider
+                router={router}
+                context={{
+                  queryClient,
+                }}
+              />
+            </AuthWrapper>
           </FontProvider>
         </ThemeProvider>
       </QueryClientProvider>
